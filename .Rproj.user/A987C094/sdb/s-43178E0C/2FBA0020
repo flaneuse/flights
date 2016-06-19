@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1466351728087.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "2FBA0020",
+    "lastKnownWriteTime" : 6,
+    "last_content_update" : 1466351728087,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "xdvx4bcue9",
+        "caption" : "airports",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=airports&cache_key=xdvx4bcue9",
+        "displayedObservations" : 3376,
+        "environment" : "",
+        "object" : "airports",
+        "totalObservations" : 3376,
+        "variables" : 7
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

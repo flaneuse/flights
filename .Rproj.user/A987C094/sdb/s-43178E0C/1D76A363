@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1466351754253.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "1D76A363",
+    "lastKnownWriteTime" : 140735219047816,
+    "last_content_update" : 1466351754253,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "ca4hvgxpmt",
+        "caption" : "carriers",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=carriers&cache_key=ca4hvgxpmt",
+        "displayedObservations" : 2982,
+        "environment" : "",
+        "object" : "carriers",
+        "totalObservations" : 2982,
+        "variables" : 2
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
