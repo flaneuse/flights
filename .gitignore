@@ -4,3 +4,4 @@ data/readme.html
 *.csv
 
 *.xls
+.Rproj.user
