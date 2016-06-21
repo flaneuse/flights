@@ -12,8 +12,10 @@ library(dplyr)
 library(readxl)
 library(tidyr)
 library(ggplot2)
+library(readr)
 
 airportCodes = c('DCA', 'IAD', 'BWI')
+
 
 # import data -------------------------------------------------------------
 # -- Airport location data, provided by Spotify --
@@ -26,4 +28,34 @@ carriers = read_excel('data/carriers.xls')
 # Flight on-time data from the U.S. Bureau of Transportation Statistics
 # http://www.transtats.bts.gov/DL_SelectFields.asp?Table_ID=236&DB_Short_Name=On-Time
 # Downloaded 20 June 2016
-flights = read.csv('data/On_Time_On_Time_Performance_2016_1.csv')
+
+# All individual file names w/ flight data (ea. year, month)
+flightFiles = list.files('data/', pattern = '*.csv', full.names =  TRUE)
+
+readFlights = function(fileName, airports) {
+  flightData = read_csv(fileName)
+  
+  # -- Filter just the data from the interesting airports
+  # (and get rid of irrelevant columns)
+  flightData = flightData %>% 
+    filter(Origin %in% airports | Dest %in% airports) %>% 
+    select(Year, Quarter, Month, 
+                         DayofMonth, DayOfWeek, FlightDate,
+                         UniqueCarrier, Origin, OriginCityName, OriginState,
+                         Dest, DestCityName, DestState,
+                         CRSDepTime, DepTime, DepDelay, DepDel15,
+                         TaxiOut, WheelsOff, WheelsOn, TaxiIn,
+                         CRSArrTime, ArrTime, ArrDelay, ArrDel15,
+                         Cancelled, CancellationCode, Diverted, AirTime,
+                         Flights, Distance, CarrierDelay, WeatherDelay,
+                         NASDelay, SecurityDelay, LateAircraftDelay)
+}
+
+# Read / filter the data from all the files
+flightList = lapply(flightFiles, function(x) readFlights(x, airports = airportCodes))
+
+# merge all the data together
+# flights = bind_rows(flightList) # dplyr thinks my data frames are corrupt?! :(
+flights = do.call(rbind, flightList)
+
+
