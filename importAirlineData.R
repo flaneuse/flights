@@ -40,15 +40,16 @@ readFlights = function(fileName, airports) {
   flightData = flightData %>% 
     filter(Origin %in% airports | Dest %in% airports) %>% 
     select(Year, Quarter, Month, 
-                         DayofMonth, DayOfWeek, FlightDate,
-                         UniqueCarrier, Origin, OriginCityName, OriginState,
-                         Dest, DestCityName, DestState,
-                         CRSDepTime, DepTime, DepDelay, DepDel15,
-                         TaxiOut, WheelsOff, WheelsOn, TaxiIn,
-                         CRSArrTime, ArrTime, ArrDelay, ArrDel15,
-                         Cancelled, CancellationCode, Diverted, AirTime,
-                         Flights, Distance, CarrierDelay, WeatherDelay,
-                         NASDelay, SecurityDelay, LateAircraftDelay)
+           DayofMonth, DayOfWeek, FlightDate,
+           UniqueCarrier, Origin, OriginCityName, OriginState,
+           Dest, DestCityName, DestState,
+           CRSDepTime, DepTime, DepDelay, DepDel15,
+           TaxiOut, WheelsOff, WheelsOn, TaxiIn,
+           CRSArrTime, ArrTime, ArrDelay, ArrDel15,
+           CRSElapsedTime, ActualElapsedTime,
+           Cancelled, CancellationCode, Diverted, AirTime,
+           Flights, Distance, CarrierDelay, WeatherDelay,
+           NASDelay, SecurityDelay, LateAircraftDelay)
 }
 
 # Read / filter the data from all the files
@@ -59,3 +60,31 @@ flightList = lapply(flightFiles, function(x) readFlights(x, airports = airportCo
 flights = do.call(rbind, flightList)
 
 
+# Basic descriptive stats on data -----------------------------------------
+departures = flights %>% 
+  filter(Origin %in% airportCodes)
+
+arrivals = flights %>% 
+  filter(Dest %in% airportCodes) %>% 
+  group_by(Dest, Year) %>% 
+  summarise(num = n(), dist = mean(Distance), 
+            div = mean(Diverted), 
+            cancelled = mean(Cancelled),
+            flightTime = mean(ActualElapsedTime),
+            airtime = mean(AirTime, na.rm = TRUE))
+
+
+# data exploration to check vars ------------------------------------------
+# -- Create a small subset of the data --
+subset = flights %>% slice(1:1000)
+
+ggplot(subset, aes(x = CRSElapsedTime, y = ActualElapsedTime)) +
+         geom_point(size = 3, alpha = 0.2) +
+         theme_bw()
+# Okay... so CRS != actual.
+
+ggplot(subset, aes(x = AirTime, y = ActualElapsedTime)) +
+  geom_point(size = 3, alpha = 0.2) +
+  theme_bw() +
+  coord_equal()
+# And similarly, airtime != elapsed time.  Assuming air time = wheels up - wheels down (excluding taxiing times)
