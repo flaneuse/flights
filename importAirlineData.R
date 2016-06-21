@@ -13,6 +13,7 @@ library(readxl)
 library(tidyr)
 library(ggplot2)
 library(readr)
+library(zoo)
 
 airportCodes = c('DCA', 'IAD', 'BWI')
 
@@ -57,16 +58,23 @@ flightList = lapply(flightFiles, function(x) readFlights(x, airports = airportCo
 
 # merge all the data together
 # flights = bind_rows(flightList) # dplyr thinks my data frames are corrupt?! :(
-flights = do.call(rbind, flightList)
+flights = do.call(rbind, flightList) %>% 
+  mutate(yr_month = zoo::as.yearmon(Year, Month))
 
 
 # Basic descriptive stats on data -----------------------------------------
 departures = flights %>% 
-  filter(Origin %in% airportCodes)
+  filter(Origin %in% airportCodes) %>% 
+  group_by(Dest, yr_month) %>% 
+  summarise(num = n(), dist = mean(Distance), 
+            div = mean(Diverted), 
+            cancelled = mean(Cancelled),
+            flightTime = mean(ActualElapsedTime),
+            airtime = mean(AirTime, na.rm = TRUE))
 
 arrivals = flights %>% 
   filter(Dest %in% airportCodes) %>% 
-  group_by(Dest, Year) %>% 
+  group_by(Dest, yr_month) %>% 
   summarise(num = n(), dist = mean(Distance), 
             div = mean(Diverted), 
             cancelled = mean(Cancelled),
@@ -88,3 +96,11 @@ ggplot(subset, aes(x = AirTime, y = ActualElapsedTime)) +
   theme_bw() +
   coord_equal()
 # And similarly, airtime != elapsed time.  Assuming air time = wheels up - wheels down (excluding taxiing times)
+
+
+# Simple yearly trends ----------------------------------------------------
+ggplot(arrivals, aes(x = yr_month, y = num, group = Dest)) +
+  geom_line() +
+  theme_bw() +
+  facet_wrap(~Dest)
+
