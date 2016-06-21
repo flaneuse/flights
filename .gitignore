@@ -5,3 +5,5 @@ data/readme.html
 
 *.xls
 .Rproj.user
+
+*.RData
