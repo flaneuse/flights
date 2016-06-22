@@ -56,19 +56,23 @@ flightList = lapply(flightFiles, function(x) readFlights(x))
 # merge all the data together
 flights = bind_rows(flightList) %>% 
   # do.call(rbind, flightList) %>%
-  mutate(yr_month = zoo::as.yearmon(Year, Month)) %>% 
-  rename(year = Year, month = Month, quarter = Quarter, 
-         origin = Origin, dest = Dest, depTime = DepTime, 
-         arrTime = ArrTime)
+  mutate(yr_month = zoo::as.yearmon(Year, Month)) 
 
 # Pull out all the data from flights NOT landing in the DC area as the refernce set
-flights_ref = flights_dc = flights %>% 
-  filter(!Origin %in% airports,
-         !Dest %in% airports)
+flights_ref = flights %>% 
+  filter(!Origin %in% airportCodes,
+         !Dest %in% airportCodes) %>% 
+  rename(year = Year, month = Month, quarter = Quarter, 
+         origin = Origin, dest = Dest, depTime = DepTime, 
+         arrTime = ArrTime, date = FlightDate)
 
 # Create the set of flights just in the DC area  
 flights_dc = flights %>% 
-  filter(Origin %in% airports | Dest %in% airports)
+  filter(Origin %in% airportCodes | Dest %in% airportCodes) %>% 
+  rename(year = Year, month = Month, quarter = Quarter, 
+         origin = Origin, dest = Dest, depTime = DepTime, 
+         arrTime = ArrTime, date = FlightDate)
+
 
 
 # -------------------------------------------------------------------------
@@ -109,18 +113,36 @@ return(list(arrivals = arrivals, departures = departures))
 }
 
 # Collapse by year --------------------------------------------------------
+# -- DC data --
 dc_by_year = collapse(flights_dc, 
                       timeVar = 'year')
+
+dc_arrivals_year = dc_by_year$arrivals
+dc_dep_year = dc_by_year$departures
+
+# All non-DC data
+all_by_year = flights_all %>% 
+  group_by(year) %>% 
+  summarise(num = n())
 
 # Collapse by month -------------------------------------------------------
 dc_by_month = collapse(flights_dc, 
                       timeVar = 'month')
 
+# All non-DC data
+all_by_month = flights_all %>% 
+  group_by(year, month) %>% 
+  summarise(num = n())
 
 # Collapse by date --------------------------------------------------------
 
-dc_by_month = collapse(flights_dc, 
-                       timeVar = 'month')
+dc_by_date = collapse(flights_dc, 
+                       timeVar = 'FlightDate')
+
+# All non-DC data
+all_by_date = flights_all %>% 
+  group_by(year, month, FlightDate) %>% 
+  summarise(num = n())
 
 
 # data exploration to check vars ------------------------------------------
