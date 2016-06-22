@@ -16,7 +16,7 @@ library(zoo)
 library(data.table)
 
 airportCodes = c('DCA', 'IAD', 'BWI')
-airportCodes2 = c('JFK', 'LGA')
+airportCodes2 = c('JFK', 'LGA', 'ORD', 'LAX')
 # import data -------------------------------------------------------------
 # -- Airport location data, provided by Spotify --
 airports = read_excel('data/airports new.xls')
