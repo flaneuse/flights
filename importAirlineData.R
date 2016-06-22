@@ -178,12 +178,13 @@ dc_date_airline = flights_dc %>%
   mutate(airport = ifelse(dest == 'DCA' | origin == 'DCA', 'DCA',
                           ifelse(dest == 'IAD' | origin == 'IAD', 'IAD',
                                  ifelse(dest == 'BWI' | origin == 'BWI', 'BWI', NA)))) %>% 
-  group_by(year, month, date, carrier, airport) %>% 
+  group_by(year, month, date, dayOfWeek, 
+           carrier, airport) %>% 
   summarise(num = n())
 
 # All non-DC data
 all_date_airline = flights_ref %>% 
-  group_by(year, month, date, carrier) %>% 
+  group_by(year, month, date, dayOfWeek, carrier) %>% 
   summarise(num = n())
 
 
@@ -218,7 +219,7 @@ dc_date_airline %>%
 # Export relevant data ----------------------------------------------------
 rm(flights_dc, flights_ref)
 
-save.image(file = 'collapsed_2016-06-22.RData')
+save.image(file = 'data_out/collapsed_2016-06-22.RData')
 
 save(dc_date_airline, all_date_airline, airports,
-     file = 'collapsed_byAirline_2016-06-22.RData')
+     file = 'data_out/collapsed_byAirline_2016-06-22.RData')
