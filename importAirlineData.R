@@ -173,8 +173,52 @@ all_by_date = flights_ref %>%
   group_by(yr_month, year, month, dayOfWeek) %>% 
   summarise(num = n())
 
+# Collapse by date and airline --------------------------------------------
+dc_date_airline = flights_dc %>% 
+  mutate(airport = ifelse(dest == 'DCA' | origin == 'DCA', 'DCA',
+                          ifelse(dest == 'IAD' | origin == 'IAD', 'IAD',
+                                 ifelse(dest == 'BWI' | origin == 'BWI', 'BWI', NA)))) %>% 
+  group_by(year, month, date, carrier, airport) %>% 
+  summarise(num = n())
+
+# All non-DC data
+all_date_airline = flights_ref %>% 
+  group_by(year, month, date, carrier) %>% 
+  summarise(num = n())
+
+
+# Merge in carrier data ---------------------------------------------------
+all_date_airline = left_join(all_date_airline, 
+                             carriers,
+                             by = c("carrier" = "Code")) %>% 
+  rename(carrierName = Description)
+
+# Check and see if merged properly
+all_date_airline %>% 
+  filter(is.na(carrierName)) %>% 
+  group_by(carrier) %>% 
+  summarise(n())
+
+dc_date_airline = left_join(dc_date_airline, 
+                             carriers,
+                             by = c("carrier" = "Code")) %>% 
+  rename(carrierName = Description)
+
+# Check and see if merged properly
+dc_date_airline %>% 
+  filter(is.na(carrierName)) %>% 
+  group_by(carrier) %>% 
+  summarise(n())
+
+# Only carrier without a name is code "KH", which doesn't operate in the DC area.
+# Ignoring for now.
+
+
 
 # Export relevant data ----------------------------------------------------
 rm(flights_dc, flights_ref)
 
 save.image(file = 'collapsed_2016-06-22.RData')
+
+save(dc_date_airline, all_date_airline, airports,
+     file = 'collapsed_byAirline_2016-06-22.RData')
