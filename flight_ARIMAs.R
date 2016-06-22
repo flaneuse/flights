@@ -20,11 +20,11 @@ correction_month = all_by_month %>%
 
 arrivals_adj = dc_month %>% 
   ungroup() %>% 
-  group_by(airport, year, month) %>% 
+  group_by(airport) %>% 
   mutate(natl = correction_month$adj,
          adj = total / correction_month$adj)
 
-ggplot(arrivals_adj %>% filter, aes(x = yr_month, y = adj,
+ggplot(arrivals_adj, aes(x = yr_month, y = adj,
                          group = airport, colour= airport)) +
   geom_line()+ 
   theme_bw()
