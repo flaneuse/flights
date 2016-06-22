@@ -50,16 +50,16 @@ readFlights = function(fileName) {
 }
 
 
-
 # Read / filter the data for all airports from all the files
 flightList = lapply(flightFiles, function(x) readFlights(x))
 
 # merge all the data together
-# flights = bind_rows(flightList) # dplyr thinks my data frames are corrupt?! :(
-flights = do.call(rbind, flightList) %>% 
+flights = bind_rows(flightList) %>% 
+  # do.call(rbind, flightList) %>%
   mutate(yr_month = zoo::as.yearmon(Year, Month)) %>% 
   rename(year = Year, month = Month, quarter = Quarter, 
-         origin = Origin, dest = Dest, depTime = DepTime, arrTime = ArrTime)
+         origin = Origin, dest = Dest, depTime = DepTime, 
+         arrTime = ArrTime)
 
 # Pull out all the data from flights NOT landing in the DC area as the refernce set
 flights_ref = flights_dc = flights %>% 
@@ -70,59 +70,62 @@ flights_ref = flights_dc = flights %>%
 flights_dc = flights %>% 
   filter(Origin %in% airports | Dest %in% airports)
 
+
+# -------------------------------------------------------------------------
+# -------------------------------------------------------------------------
+
 # Basic descriptive stats on data -----------------------------------------
 
+# collapse function to sum over timeframe ---------------------------------
 
-# Collapse by year --------------------------------------------------------
-# -- All flights --
-dep_all_year = flights_ref %>% 
+collapse = function(df, 
+                    timeVar = 'year',
+                    airports = airportCodes) {
+  
+  # explode out timeVar to component parts:
+  timeVar = if(!timeVar %in% colnames(df)) {
+    stop('grouping variable timeVar is not within the inputted data frame')
+  } else if(timeVar == 'year'){
+    var2 = var3 = 'year'
+  } else if(timeVar == 'month'){
+    var2 = var3 = 'year'
+  } else if(timeVar == 'FlightDate'){
+    var2 = 'year'
+    var3 = 'month'
+  }
+
+# Group by the time variable and sum the number of flights
+departures = df %>% 
   filter(origin %in% airportCodes) %>% 
-  group_by(origin, year) %>% 
+  group_by_('origin', var2, var3, timeVar) %>% 
   summarise(num = n())
 
-arrivals = flights %>% 
-  filter(Dest %in% airportCodes) %>% 
-  group_by(Dest, yr_month) %>% 
-  summarise(num = n(), dist = mean(Distance), 
-            div = mean(Diverted), 
-            cancelled = mean(Cancelled),
-            flightTime = mean(ActualElapsedTime),
-            airtime = mean(AirTime, na.rm = TRUE))
+arrivals = df %>% 
+  filter(dest %in% airportCodes) %>% 
+  group_by_('dest', var2, var3, timeVar) %>% 
+  summarise(num = n())
 
-arrivals_date = flights %>% 
-  filter(Dest %in% airportCodes) %>% 
-  group_by(Dest, FlightDate, Year) %>% 
-  summarise(num = n(), dist = mean(Distance), 
-            div = mean(Diverted), 
-            cancelled = mean(Cancelled),
-            flightTime = mean(ActualElapsedTime),
-            airtime = mean(AirTime, na.rm = TRUE))
+return(list(arrivals = arrivals, departures = departures))
+}
 
-departures_date = flights %>% 
-  filter(Origin %in% airportCodes,
-         Month %in% c(11:12)) %>% 
-  group_by(Origin, FlightDate, Year) %>% 
-  summarise(num = n(), dist = mean(Distance), 
-            div = mean(Diverted), 
-            cancelled = mean(Cancelled),
-            flightTime = mean(ActualElapsedTime),
-            airtime = mean(AirTime, na.rm = TRUE))
+# Collapse by year --------------------------------------------------------
+dc_by_year = collapse(flights_dc, 
+                      timeVar = 'year')
+
+# Collapse by month -------------------------------------------------------
+dc_by_month = collapse(flights_dc, 
+                      timeVar = 'month')
+
+
+# Collapse by date --------------------------------------------------------
+
+dc_by_month = collapse(flights_dc, 
+                       timeVar = 'month')
 
 
 # data exploration to check vars ------------------------------------------
 # -- Create a small subset of the data --
 subset = flights %>% slice(1:1000)
-
-ggplot(subset, aes(x = CRSElapsedTime, y = ActualElapsedTime)) +
-         geom_point(size = 3, alpha = 0.2) +
-         theme_bw()
-# Okay... so CRS != actual.
-
-ggplot(subset, aes(x = AirTime, y = ActualElapsedTime)) +
-  geom_point(size = 3, alpha = 0.2) +
-  theme_bw() +
-  coord_equal()
-# And similarly, airtime != elapsed time.  Assuming air time = wheels up - wheels down (excluding taxiing times)
 
 
 # Simple month/yearly trends ----------------------------------------------------
@@ -132,18 +135,18 @@ ggplot(arrivals, aes(x = yr_month, y = num,
   theme_bw()
 
 ggplot(departures, aes(x = yr_month, y = num, 
-                     colour = Origin, group = Origin)) +
+                       colour = Origin, group = Origin)) +
   geom_line() +
   theme_bw()
 
 
 ggplot(arrivals_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
-                          colour = Dest, group = Dest)) + 
+                                                    colour = Dest, group = Dest)) + 
   geom_line() +
   theme_bw()
 
 ggplot(departures_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
-                                                    colour = Origin, group = Origin)) + 
+                                                      colour = Origin, group = Origin)) + 
   geom_line() +
   theme_bw()
 
