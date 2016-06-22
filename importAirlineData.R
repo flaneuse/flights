@@ -15,9 +15,10 @@ library(ggplot2)
 library(readr)
 library(zoo)
 library(data.table)
+library(seasonal)
 
+# Focus data on the airports in the Washington DC Metro area.
 airportCodes = c('DCA', 'IAD', 'BWI')
-airportCodes2 = c('ORD', 'LAX', 'JFK', 'LGA')
 
 # import data -------------------------------------------------------------
 # -- Airport location data, provided by Spotify --
@@ -34,78 +35,73 @@ carriers = read_excel('data/carriers.xls')
 # All individual file names w/ flight data (ea. year, month)
 flightFiles = list.files('data/', pattern = '*.csv', full.names =  TRUE)
 
-readFlights = function(fileName, airports) {
-  flightData = read_csv(fileName)
+readFlights = function(fileName) {
+  # Manually specify column types, to deal with import error for Carrier/UniqueCarrier
+  # read_csv gets confused if the carrier name starts w/ a number.
+  flightData = read_csv(fileName, col_types = paste0('iiiiiDcdc_____ccc_c____ccc_c_cc_________cc', paste0(rep('_', 68), collapse='')))
   
-  # -- Filter just the data from the interesting airports
-  # (and get rid of irrelevant columns)
-  flightData = flightData %>% 
-    filter(Origin %in% airports | Dest %in% airports) %>%
-    select(Year, Quarter, Month, 
-           DayofMonth, DayOfWeek, FlightDate,
-           UniqueCarrier, Origin, OriginCityName, OriginState,
-           Dest, DestCityName, DestState,
-           CRSDepTime, DepTime, DepDelay, DepDel15,
-           TaxiOut, WheelsOff, WheelsOn, TaxiIn,
-           CRSArrTime, ArrTime, ArrDelay, ArrDel15,
-           CRSElapsedTime, ActualElapsedTime,
-           Cancelled, CancellationCode, Diverted, AirTime,
-           Flights, Distance, CarrierDelay, WeatherDelay,
-           NASDelay, SecurityDelay, LateAircraftDelay)
-}
-
-readAllFlights = function(fileName) {
-  flightData = read_csv(fileName)
+  # Get rid of irrelevant columns-- should be taken care of in import, but double checking.
   
-  # (and get rid of irrelevant columns)
   flightData = flightData %>% 
     select(Year, Quarter, Month, 
            DayofMonth, DayOfWeek, FlightDate,
-           UniqueCarrier, Origin, OriginCityName, OriginState,
-           Dest, DestCityName, DestState,
-           CRSDepTime, DepTime, DepDelay, DepDel15,
-           TaxiOut, WheelsOff, WheelsOn, TaxiIn,
-           CRSArrTime, ArrTime, ArrDelay, ArrDel15,
-           CRSElapsedTime, ActualElapsedTime,
-           Cancelled, CancellationCode, Diverted, AirTime,
-           Flights, Distance, CarrierDelay, WeatherDelay,
-           NASDelay, SecurityDelay, LateAircraftDelay)
+           UniqueCarrier, Origin,
+           Dest, CRSDepTime, DepTime, CRSArrTime, ArrTime)
 }
 
 
-# Read / filter the data from all the files
-flightList = lapply(flightFiles, function(x) readFlights(x, airports = airportCodes))
 
-flightList_chicago = lapply(flightFiles, function(x) readFlights(x, airports = airportCodes2))
-
-flightList_2015 = lapply(flightFiles[flightFiles %like% '2015'], function(x) readAllFlights(x))
-
-
-flightList_ref = lapply(flightFiles[flightFiles %like% '2015'], function(x) read_csv(x) %>% select(Year, Quarter, Month, 
-                                                                                                   DayofMonth, DayOfWeek, FlightDate,
-                                                                                                  Origin, Dest))
+# Read / filter the data for all airports from all the files
+flightList = lapply(flightFiles, function(x) readFlights(x))
 
 # merge all the data together
 # flights = bind_rows(flightList) # dplyr thinks my data frames are corrupt?! :(
 flights = do.call(rbind, flightList) %>% 
-  mutate(yr_month = zoo::as.yearmon(Year, Month))
+  mutate(yr_month = zoo::as.yearmon(Year, Month)) %>% 
+  rename(year = Year, month = Month, quarter = Quarter, 
+         origin = Origin, dest = Dest, depTime = DepTime, arrTime = ArrTime)
 
-flights2015 = do.call(rbind, flightList_2015) %>% 
-  mutate(yr_month = zoo::as.yearmon(Year, Month))
+# Pull out all the data from flights NOT landing in the DC area as the refernce set
+flights_ref = flights_dc = flights %>% 
+  filter(!Origin %in% airports,
+         !Dest %in% airports)
+
+# Create the set of flights just in the DC area  
+flights_dc = flights %>% 
+  filter(Origin %in% airports | Dest %in% airports)
 
 # Basic descriptive stats on data -----------------------------------------
-departures = flights %>% 
-  filter(Origin %in% airportCodes) %>% 
-  group_by(Origin, yr_month) %>% 
+
+
+# Collapse by year --------------------------------------------------------
+# -- All flights --
+dep_all_year = flights_ref %>% 
+  filter(origin %in% airportCodes) %>% 
+  group_by(origin, year) %>% 
+  summarise(num = n())
+
+arrivals = flights %>% 
+  filter(Dest %in% airportCodes) %>% 
+  group_by(Dest, yr_month) %>% 
   summarise(num = n(), dist = mean(Distance), 
             div = mean(Diverted), 
             cancelled = mean(Cancelled),
             flightTime = mean(ActualElapsedTime),
             airtime = mean(AirTime, na.rm = TRUE))
 
-arrivals = flights %>% 
+arrivals_date = flights %>% 
   filter(Dest %in% airportCodes) %>% 
-  group_by(Dest, yr_month) %>% 
+  group_by(Dest, FlightDate, Year) %>% 
+  summarise(num = n(), dist = mean(Distance), 
+            div = mean(Diverted), 
+            cancelled = mean(Cancelled),
+            flightTime = mean(ActualElapsedTime),
+            airtime = mean(AirTime, na.rm = TRUE))
+
+departures_date = flights %>% 
+  filter(Origin %in% airportCodes,
+         Month %in% c(11:12)) %>% 
+  group_by(Origin, FlightDate, Year) %>% 
   summarise(num = n(), dist = mean(Distance), 
             div = mean(Diverted), 
             cancelled = mean(Cancelled),
@@ -129,7 +125,7 @@ ggplot(subset, aes(x = AirTime, y = ActualElapsedTime)) +
 # And similarly, airtime != elapsed time.  Assuming air time = wheels up - wheels down (excluding taxiing times)
 
 
-# Simple yearly trends ----------------------------------------------------
+# Simple month/yearly trends ----------------------------------------------------
 ggplot(arrivals, aes(x = yr_month, y = num, 
                      colour = Dest, group = Dest)) +
   geom_line() +
@@ -141,16 +137,13 @@ ggplot(departures, aes(x = yr_month, y = num,
   theme_bw()
 
 
-# time on tarmac ----------------------------------------------------------
-View(flights2015 %>% 
-  group_by(Dest) %>% 
-  summarise(time = mean(TaxiIn, na.rm = TRUE),
-            num = n()) %>% 
-  arrange(desc(time)))
+ggplot(arrivals_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
+                          colour = Dest, group = Dest)) + 
+  geom_line() +
+  theme_bw()
 
-View(flights2015 %>% 
-  group_by(Origin) %>% 
-  summarise(time = mean(TaxiOut, na.rm = TRUE),
-            num = n()) %>% 
-  arrange(desc(time)))
+ggplot(departures_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
+                                                    colour = Origin, group = Origin)) + 
+  geom_line() +
+  theme_bw()
 
