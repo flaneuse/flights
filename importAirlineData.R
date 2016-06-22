@@ -86,34 +86,36 @@ flights_dc = flights %>%
 
 # collapse function to sum over timeframe ---------------------------------
 
-collapse = function(df, 
-                    timeVar = 'year',
+collapse = function(df, timeVar,
                     airports = airportCodes) {
   
   # explode out timeVar to component parts:
-  timeVar = if(!timeVar %in% colnames(df)) {
+  if(!timeVar %in% colnames(df)) {
     stop('grouping variable timeVar is not within the inputted data frame')
   } else if(timeVar == 'year'){
-    var2 = var3 = 'year'
-  } else if(timeVar == 'month'){
-    var2 = var3 = 'year'
+    var2 = var3 = var4 = 'year'
+  } else if(timeVar == 'yr_month'){
+    var2 = 'year'
+    var3 = var4 = 'month'
   } else if(timeVar == 'date'){
     var2 = 'year'
     var3 = 'month'
+    var4 = 'yr_month'
   } else if(timeVar == 'dayOfWeek'){
     var2 = 'year'
     var3 = 'month'
+    var4 = 'yr_month'
   }
 
-# Group by the time variable and sum the number of flights
+  # Group by the time variable and sum the number of flights
 departures = df %>% 
   filter(origin %in% airportCodes) %>% 
-  group_by_('origin', var2, var3, timeVar) %>% 
+  group_by_('origin', var2, var3, var4, timeVar) %>% 
   summarise(num = n())
 
 arrivals = df %>% 
   filter(dest %in% airportCodes) %>% 
-  group_by_('dest', var2, var3, timeVar) %>% 
+  group_by_('dest', var2, var3, var4, timeVar) %>% 
   summarise(num = n())
 
 return(list(arrivals = arrivals, departures = departures))
@@ -134,14 +136,14 @@ all_by_year = flights_ref %>%
 
 # Collapse by month -------------------------------------------------------
 dc_by_month = collapse(flights_dc, 
-                      timeVar = 'month')
+                      timeVar = 'yr_month')
 
 arrivals_month = dc_by_month$arrivals
 dep_month = dc_by_month$departures
 
 # All non-DC data
 all_by_month = flights_ref %>% 
-  group_by(year, month) %>% 
+  group_by(yr_month, year, month) %>% 
   summarise(num = n())
 
 # Collapse by date --------------------------------------------------------
@@ -168,33 +170,11 @@ dep_day = dc_by_day$departures
 
 # All non-DC data
 all_by_date = flights_ref %>% 
-  group_by(year, month, dayOfWeek) %>% 
+  group_by(yr_month, year, month, dayOfWeek) %>% 
   summarise(num = n())
 
-# data exploration to check vars ------------------------------------------
-# -- Create a small subset of the data --
-subset = flights %>% slice(1:1000)
 
+# Export relevant data ----------------------------------------------------
+rm(flights_dc, flights_ref)
 
-# Simple month/yearly trends ----------------------------------------------------
-ggplot(arrivals, aes(x = yr_month, y = num, 
-                     colour = Dest, group = Dest)) +
-  geom_line() +
-  theme_bw()
-
-ggplot(departures, aes(x = yr_month, y = num, 
-                       colour = Origin, group = Origin)) +
-  geom_line() +
-  theme_bw()
-
-
-ggplot(arrivals_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
-                                                    colour = Dest, group = Dest)) + 
-  geom_line() +
-  theme_bw()
-
-ggplot(departures_date %>%  filter(Year == 2015), aes(x = FlightDate, y = num,
-                                                      colour = Origin, group = Origin)) + 
-  geom_line() +
-  theme_bw()
-
+save.image(file = 'collapsed_2016-06-22.RData')
