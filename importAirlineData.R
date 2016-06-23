@@ -212,11 +212,11 @@ all_date_airline = left_join(all_date_airline,
                                      'Delta Air Lines Inc.',
                                      ifelse(carrier %in% c('CO', 'UA'), # Continental --> United
                                             'United Air Lines Inc.',
-                                            ifelse(carrier %in% c('FL', 'WN'), # AirTran --> SW 
+                                            ifelse(carrier %in% c('FL', 'WN', 'TZ'), # AirTran --> SW ; ATA bought by SW
                                                    'Southwest Airlines Co.',
                                                    ifelse(carrier %in% c('XE', 'OO'), # Expressjet subsidary of Skywest
                                                           'Skywest Airlines Inc.',
-                                                          carrier)
+                                                          carrierName)
                                             ))))) %>% 
   ungroup() %>% 
   group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
@@ -240,11 +240,11 @@ dc_date_airline = left_join(dc_date_airline,
                                      'Delta Air Lines Inc.',
                                      ifelse(carrier %in% c('CO', 'UA'), # Continental --> United
                                             'United Air Lines Inc.',
-                                            ifelse(carrier %in% c('FL', 'WN'), # AirTran --> SW 
+                                            ifelse(carrier %in% c('FL', 'WN', 'TZ'), # AirTran --> SW ; ATA bought by SW
                                                    'Southwest Airlines Co.',
                                                    ifelse(carrier %in% c('XE', 'OO'), # Expressjet subsidary of Skywest
                                                           'Skywest Airlines Inc.',
-                                                          carrier)
+                                                          carrierName)
                                             ))))) %>% 
   ungroup() %>% 
   group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
