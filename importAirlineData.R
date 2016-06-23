@@ -106,7 +106,7 @@ collapse = function(df, timeVar) {
     var3 = 'month'
     var4 = 'yr_month'
   }
-
+  
   summed_flights = df %>%
     mutate(airport = ifelse(dest == 'DCA' | origin == 'DCA', 'DCA',
                             ifelse(dest == 'IAD' | origin == 'IAD', 'IAD',
@@ -116,17 +116,17 @@ collapse = function(df, timeVar) {
   
   # Antiquated-- used for separately summing arrivals and departures.
   # Group by the time variable and sum the number of flights
-# departures = df %>% 
-#   filter(origin %in% airportCodes) %>% 
-#   group_by_('origin', var2, var3, var4, timeVar) %>% 
-#   summarise(num = n())
-# 
-# arrivals = df %>% 
-#   filter(dest %in% airportCodes) %>% 
-#   group_by_('dest', var2, var3, var4, timeVar) %>% 
-#   summarise(num = n())
-
-# return(list(arrivals = arrivals, departures = departures))
+  # departures = df %>% 
+  #   filter(origin %in% airportCodes) %>% 
+  #   group_by_('origin', var2, var3, var4, timeVar) %>% 
+  #   summarise(num = n())
+  # 
+  # arrivals = df %>% 
+  #   filter(dest %in% airportCodes) %>% 
+  #   group_by_('dest', var2, var3, var4, timeVar) %>% 
+  #   summarise(num = n())
+  
+  # return(list(arrivals = arrivals, departures = departures))
   return(summed_flights)
 }
 
@@ -143,7 +143,7 @@ all_by_year = flights_ref %>%
 
 # Collapse by month -------------------------------------------------------
 dc_by_month = collapse(flights_dc, 
-                      timeVar = 'yr_month') %>% 
+                       timeVar = 'yr_month') %>% 
   ungroup() %>% 
   mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')))
 
@@ -158,7 +158,7 @@ all_by_month = flights_ref %>%
 # Collapse by date --------------------------------------------------------
 
 dc_by_date = collapse(flights_dc, 
-                       timeVar = 'date') %>% 
+                      timeVar = 'date') %>% 
   ungroup()
 
 
@@ -172,7 +172,7 @@ all_by_date = flights_ref %>%
 # Collapse by day of week --------------------------------------------------------
 
 dc_by_day = collapse(flights_dc, 
-                      timeVar = 'dayOfWeek') %>% 
+                     timeVar = 'dayOfWeek') %>% 
   ungroup() %>% 
   mutate(yr_month = ymd(paste0(year, '-', month, '-', dayOfWeek)))
 
@@ -207,7 +207,17 @@ all_date_airline = left_join(all_date_airline,
                              by = c("carrier" = "Code")) %>% 
   rename(carrierName = Description) %>% 
   mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
-                              'American Airlines Inc.', carrierName)) %>% # Convert U.S. Airways and America West to be American Airlines, since they merged
+                              'American Airlines Inc.', # Convert U.S. Airways and America West to be American Airlines, since they merged
+                              ifelse(carrier %in% c('NW', 'DL', 'OH'), # Convert Northwest to Delta (merger); Comair Delta subsidary
+                                     'Delta Air Lines Inc.',
+                                     ifelse(carrier %in% c('CO', 'UA'), # Continental --> United
+                                            'United Air Lines Inc.',
+                                            ifelse(carrier %in% c('FL', 'WN'), # AirTran --> SW 
+                                                   'Southwest Airlines Co.',
+                                                   ifelse(carrier %in% c('XE', 'OO'), # Expressjet subsidary of Skywest
+                                                          'Skywest Airlines Inc.',
+                                                          carrier)
+                                            ))))) %>% 
   ungroup() %>% 
   group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
            carrierName) %>% 
@@ -217,7 +227,7 @@ all_date_airline = left_join(all_date_airline,
 # Check and see if merged properly
 all_date_airline %>% 
   filter(is.na(carrierName)) %>% 
-  group_by(carrier) %>% 
+  group_by(carrierName) %>% 
   summarise(n())
 
 dc_date_airline = left_join(dc_date_airline, 
@@ -225,7 +235,17 @@ dc_date_airline = left_join(dc_date_airline,
                             by = c("carrier" = "Code")) %>% 
   rename(carrierName = Description) %>% 
   mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
-                              'American Airlines Inc.', carrierName)) %>%  # Convert U.S. Airways and America West to be American Airlines, since they merged
+                              'American Airlines Inc.', # Convert U.S. Airways and America West to be American Airlines, since they merged
+                              ifelse(carrier %in% c('NW', 'DL', 'OH'), # Convert Northwest to Delta (merger); Comair Delta subsidary
+                                     'Delta Air Lines Inc.',
+                                     ifelse(carrier %in% c('CO', 'UA'), # Continental --> United
+                                            'United Air Lines Inc.',
+                                            ifelse(carrier %in% c('FL', 'WN'), # AirTran --> SW 
+                                                   'Southwest Airlines Co.',
+                                                   ifelse(carrier %in% c('XE', 'OO'), # Expressjet subsidary of Skywest
+                                                          'Skywest Airlines Inc.',
+                                                          carrier)
+                                            ))))) %>% 
   ungroup() %>% 
   group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
            carrierName, airport) %>% 
@@ -235,7 +255,7 @@ dc_date_airline = left_join(dc_date_airline,
 # Check and see if merged properly
 dc_date_airline %>% 
   filter(is.na(carrierName)) %>% 
-  group_by(carrier) %>% 
+  group_by(carrierName) %>% 
   summarise(n())
 
 # Only carrier without a name is code "KH", which doesn't operate in the DC area.
