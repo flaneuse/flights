@@ -7,55 +7,45 @@ library(readr)
 library(zoo)
 library(data.table)
 library(seasonal)
+library(llamar)
+library(extrafont)
 
+loadfonts()
+
+# global params -----------------------------------------------------------
+dcaColour = '#a65628'
+iadColour = '#377eb8'
+bwiColour = '#984ea3'
+
+# -- Sizes --
+widthPlot = 6
+heightPlot = 3
+
+# refactorizing -----------------------------------------------------------
+dc_by_month$airport = factor(dc_by_month$airport,
+                             levels = c('DCA', 'IAD', 'BWI'),
+                             labels = c('Reagan', 'Dulles', 'BWI'))
 
 
 # Basic exploratory plots -------------------------------------------------
-# -- year --
-ggplot(all_by_year, aes(x = year, y = num)) +
+# -- dc over the entire period --
+
+ggplot(dc_by_month, aes(x = yr_month, y = num,
+                        group = airport, colour = airport)) +
   geom_line() +
-  theme_bw()
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
+  theme_xygridlight() +
+  theme(axis.title = element_blank(),
+        title = element_text(size = 15)) +
+  ggtitle('Total flights per month at both Reagan and Dulles have decreased') +
+  facet_wrap(~airport)
 
-ggplot(dep_year, aes(x = year, y = num,
-                     group = origin, colour = origin)) +
-  geom_line() +
-  theme_bw()
-
-
-ggplot(arrivals_year, aes(x = year, y = num,
-                          group = dest, colour = dest)) +
-  geom_line() +
-  theme_bw()
-
-# -- month --
-ggplot(all_by_month, aes(x = yr_month, y = num)) +
-  geom_line() +
-  theme_bw()
-
-ggplot(arrivals_month, aes(x = yr_month, y = num,
-                           group = dest, colour = dest)) +
-  geom_line() +
-  theme_bw()
-
-# -- date --
-ggplot(arrivals_date, aes(x = date, y = num,
-                          group = dest, colour = dest)) +
-  geom_line() +
-  theme_bw()
-
-ggplot(dep_date, aes(x = date, y = num,
-                     group = origin, colour = origin)) +
-  geom_line() +
-  theme_bw()
-
-# -- day of week, over year --
-ggplot(arrivals_day, aes(x = yr_month, y = num,
-                         group = dest, colour = dest)) +
-  geom_line() +
-  theme_bw()
-
-ggplot(dep_day, aes(x = yr_month, y = num,
-                    group = dest, colour = dest)) +
-  geom_line() +
-  theme_bw()
-
+ggsave('pdf/01_uncorrected_totalByMonth.pdf', 
+       width = widthPlot,
+       height = heightPlot,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
