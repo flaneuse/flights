@@ -16,6 +16,8 @@ library(data.table)
 library(seasonal)
 library(llamar)
 library(extrafont)
+library(ggmap)
+library(RColorBrewer)
 
 loadfonts()
 
@@ -38,8 +40,8 @@ dc_by_month$airport = factor(dc_by_month$airport,
                              labels = c('Reagan', 'Dulles', 'BWI'))
 
 dc_by_date$airport = factor(dc_by_date$airport,
-                             levels = c('DCA', 'IAD', 'BWI'),
-                             labels = c('Reagan', 'Dulles', 'BWI'))
+                            levels = c('DCA', 'IAD', 'BWI'),
+                            labels = c('Reagan', 'Dulles', 'BWI'))
 
 
 # Basic exploratory plots -------------------------------------------------
@@ -50,7 +52,7 @@ by_month = dc_by_month %>% filter(airport != 'BWI') %>%
   spread(airport, num)
 
 ggplot(by_month, aes(x = yr_month, y = num,
-                        group = airport, colour = airport)) +
+                     group = airport, colour = airport)) +
   geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight() +
@@ -81,15 +83,21 @@ ggsave('pdf/01_uncorrected_totalByMonth.pdf',
        dpi = 300)
 
 
-# Exploratory: zoom in on variation ---------------------------------------
+
+# 02 - Map of area --------------------------------------------------------
+ggmap(get_map(location = 'Washington, DC', 
+              source='osm', color = 'bw')) +
+  
+  
+  # Exploratory: zoom in on variation ---------------------------------------
 ggplot(dc_by_date %>% filter(year > 2014), aes(x = date, y = num,
-                     group = airport, colour = airport)) +
+                                               group = airport, colour = airport)) +
   geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight()
 
 ggplot(dc_by_month %>% filter(year > 2013), aes(x = yr_month, y = num,
-                                               group = airport, colour = airport)) +
+                                                group = airport, colour = airport)) +
   geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight()
@@ -101,7 +109,7 @@ ggplot(dc_by_month %>% filter(year > 2013), aes(x = yr_month, y = num,
 # 2005 seems like a reasonable comparison; outside the wacky Independence Air spike
 # and before things get really sour for Dulles.
 ggplot(dc_by_month %>% filter(year > 2003, year < 2010, airport != 'BWI'), aes(x = yr_month, y = num,
-                                                group = airport, colour = airport)) +
+                                                                               group = airport, colour = airport)) +
   geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight()
@@ -109,6 +117,7 @@ ggplot(dc_by_month %>% filter(year > 2003, year < 2010, airport != 'BWI'), aes(x
 
 # Which airlines are responsible for change in DCA traffic? ---------------
 
+# Calculate the share of flights going into/out of DCA
 pctComp = dc_date_airline %>% 
   filter(airport != 'BWI', 
          year %in% c(2005, 2015)) %>% 
@@ -121,6 +130,7 @@ pctComp = dc_date_airline %>%
   ungroup() %>% 
   group_by(carrierName)
 
+# Calculate the gross difference between the two years
 chgComp = pctComp %>% 
   select(year, carrierName, pctDCA) %>% 
   spread(year, pctDCA) %>% 
@@ -128,14 +138,34 @@ chgComp = pctComp %>%
   ungroup() %>% 
   arrange((diffDCA))
 
-# Merge back in the total number of flights per year
+# Merge back in the total number of flights per year for 2015 
+# (combined DCA + IAD flights)
 chgComp  = left_join(chgComp, pctComp %>% filter(year == 2015)) %>% 
   rowwise() %>% 
   mutate(total_DCA_IAD = sum(DCA, IAD, na.rm = TRUE))
 
 chgComp$carrierName = factor(chgComp$carrierName, levels = chgComp$carrierName)
 
-ggplot(chgComp, aes(y = carrierName, 
+# -- plot differences --
+ggplot(chgComp %>% filter(!carrierName %in% c('Virgin America', 'Independence Air')), aes(y = carrierName, 
                     x = diffDCA,
-                    size = total_DCA_IAD)) +
-  geom_point()
+                    size = total_DCA_IAD,
+                    fill = diffDCA)) +
+  geom_point(shape = 21, colour = grey90K) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_fill_gradientn(colours = brewer.pal(10, 'RdYlBu'),
+                       limits = c(-max(chgComp$diffDCA), max(chgComp$diffDCA))) +
+  scale_colour_gradientn(colours = brewer.pal(10, 'RdYlBu'),
+                         limits = c(-max(chgComp$diffDCA), max(chgComp$diffDCA))) +
+  scale_size_continuous(range = c(3, 10)) +
+  theme_xgrid()
+
+ggsave('pdf/03_chgTraffic_airline.pdf', 
+       width = widthPlot,
+       height = heightPlot*1.5,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
