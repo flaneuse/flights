@@ -7,3 +7,5 @@ data/readme.html
 .Rproj.user
 
 *.RData
+
+*.ai

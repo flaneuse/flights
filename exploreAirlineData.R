@@ -28,7 +28,9 @@ dc_by_month$airport = factor(dc_by_month$airport,
 
 
 # Basic exploratory plots -------------------------------------------------
-# -- dc over the entire period --
+
+
+# 01- DC over entire period -----------------------------------------------
 
 ggplot(dc_by_month, aes(x = yr_month, y = num,
                         group = airport, colour = airport)) +
@@ -36,8 +38,8 @@ ggplot(dc_by_month, aes(x = yr_month, y = num,
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight() +
   theme(axis.title = element_blank(),
-        title = element_text(size = 15)) +
-  ggtitle('Total flights per month at both Reagan and Dulles have decreased') +
+        title = element_text(size = 13)) +
+  ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 but more at Dulles') +
   facet_wrap(~airport)
 
 ggsave('pdf/01_uncorrected_totalByMonth.pdf', 
