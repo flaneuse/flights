@@ -86,10 +86,30 @@ ggsave('pdf/01_uncorrected_totalByMonth.pdf',
 
 # 02 - Map of area --------------------------------------------------------
 ggmap(get_map(location = 'Washington, DC', 
-              source='osm', color = 'bw')) +
-  
-  
-  # Exploratory: zoom in on variation ---------------------------------------
+              zoom = 10,
+              source='stamen', maptype = 'toner')) +
+  geom_text(aes(x = long, y = lat, 
+                label = airport),
+             colour = 'dodgerblue',
+             family = 'Segoe UI Semibold',
+             size = 5,
+             hjust = 0,
+            data = airports %>% filter(airport %in% c('Washington Dulles International',
+                                                      'Baltimore-Washington International',
+                                                      'Ronald Reagan Washington National'))) +
+  theme_void()
+
+ggsave('pdf/02_map.pdf', 
+       width = widthPlot,
+       height = widthPlot,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
+# Exploratory: zoom in on variation ---------------------------------------
 ggplot(dc_by_date %>% filter(year > 2014), aes(x = date, y = num,
                                                group = airport, colour = airport)) +
   geom_line() +
@@ -148,9 +168,11 @@ chgComp$carrierName = factor(chgComp$carrierName, levels = chgComp$carrierName)
 
 # -- plot differences --
 ggplot(chgComp %>% filter(!carrierName %in% c('Virgin America', 'Independence Air')), aes(y = carrierName, 
-                    x = diffDCA,
-                    size = total_DCA_IAD,
-                    fill = diffDCA)) +
+                                                                                          x = diffDCA,
+                                                                                          size = total_DCA_IAD,
+                                                                                          fill = diffDCA)) +
+  geom_segment(aes(xend = 0, yend = carrierName),
+               colour = grey70K, size = 0.2) +
   geom_point(shape = 21, colour = grey90K) +
   scale_x_continuous(labels = scales::percent) +
   scale_fill_gradientn(colours = brewer.pal(10, 'RdYlBu'),
@@ -169,3 +191,60 @@ ggsave('pdf/03_chgTraffic_airline.pdf',
        useDingbats=FALSE,
        compress = FALSE,
        dpi = 300)
+
+
+# 04 - naive temporal correction ------------------------------------------
+
+ggplot(dc_by_date %>% filter(year > 2012), aes(x = date, y = ratio,
+                     group = airport, colour = airport)) +
+  geom_line() +
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
+  theme_xygridlight() +
+  theme(axis.title = element_blank(),
+        title = element_text(size = 13)) +
+  # geom_point(size = 2, data = by_month %>% 
+  #              filter(month == 10 & year == 2004 | 
+  #                       month == 3 & year == 2005 | 
+  #                       month == 4 & year == 2016)) +
+  # geom_text(aes(label = num), 
+  #           family = 'Segoe UI Semilight', size = 4.5,
+  #           hjust = 0,
+  #           data = by_month %>% 
+  #             filter(month == 10 & year == 2004 | 
+  #                      month == 3 & year == 2005 | 
+  #                      month == 4 & year == 2016)) +
+  # ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 but more at Dulles') +
+  facet_wrap(~airport)
+
+ggplot(dc_by_month %>% filter(year>2010), aes(x = yr_month, y = ratio,
+                       group = airport, colour = airport)) +
+  geom_line() +
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
+  theme_xygridlight() +
+  theme(axis.title = element_blank(),
+        title = element_text(size = 13)) +
+  # geom_point(size = 2, data = by_month %>% 
+  #              filter(month == 10 & year == 2004 | 
+  #                       month == 3 & year == 2005 | 
+  #                       month == 4 & year == 2016)) +
+  # geom_text(aes(label = num), 
+  #           family = 'Segoe UI Semilight', size = 4.5,
+  #           hjust = 0,
+  #           data = by_month %>% 
+  #             filter(month == 10 & year == 2004 | 
+  #                      month == 3 & year == 2005 | 
+  #                      month == 4 & year == 2016)) +
+ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 but more at Dulles') +
+  facet_wrap(~airport)
+
+
+ggsave('pdf/01_uncorrected_totalByMonth.pdf', 
+       width = widthPlot,
+       height = heightPlot,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
