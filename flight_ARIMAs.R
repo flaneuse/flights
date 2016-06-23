@@ -1,5 +1,128 @@
-
 # adjusting for seasonality with ARIMAs -----------------------------------------------------
+
+# Laura Hughes, laura.d.hughes@gmail.com
+# 19 June 2016
+# (c) 2016 via MIT License
+
+# Clearly, there's lots of seasonal variation within airline data.  
+# This adjusts for monthly or weekly variation naively and uses
+# ARIMA models to look at the periodicity of the data.
+
+
+# Simple, naive assumption ------------------------------------------------
+# Any gross changes that happen to the number of flights in DC also happen to
+# the rest of the country. For instance, post Sept. 11, all airlines had a significant
+# downturn.  DCA was especially affected, due to restrictions.
+
+# Assuming DCA and IAD are like the rest of the country, to account for the baseline
+# of changes, we can look at the aberations of those two places by calculating a 
+# simple ratio of DCA or IAD to the rest of the country.
+# To a first approximation, this should account for typical seasonal and weekly variation.
+
+# Quickly plotting the overall monthly pattern:
+ggplot(all_by_month, aes(x = yr_month, y = num)) +
+  geom_line() +
+  theme_xygrid()
+
+# Flights have been decreasing since economic downturn in 2008/2009.
+
+# Dividing one by the other!
+
+# Merge in the natl data.
+dc_by_date = left_join(dc_by_date, all_by_date,
+                       by = c("year" = "year", "month" = "month",
+                              "dayOfWeek" = "dayOfWeek", "date" = "date")) %>% 
+  rename(natl = num.y, dc = num.x) %>% 
+  mutate(ratio = dc / natl)
+                       
+dc_by_month = left_join(dc_by_month, all_by_month,
+                       by = c("year" = "year", "month" = "month",
+                              "yr_month" = "yr_month")) %>% 
+  rename(natl = num.y, dc = num.x) %>% 
+  mutate(ratio = dc / natl)
+
+
+# correlation of ‘corrected’ data -----------------------------------------
+
+post2005 = dc_by_month %>% 
+  filter(year > 2004) %>% 
+  select(year, month, yr_month, airport, ratio) %>% 
+  spread(airport, ratio) %>% 
+  mutate(date_dec = decimal_date(yr_month))
+
+post2005 = dc_by_date %>% 
+  filter(year > 2004) %>% 
+  select(year, month, date, airport, ratio) %>% 
+  spread(airport, ratio) %>% 
+  mutate(date_dec = decimal_date(date))
+
+uncorrected = dc_by_date %>% 
+  filter(year > 2004) %>% 
+  select(year, month, date, airport, dc) %>% 
+  spread(airport, dc) %>% 
+  mutate(date_dec = decimal_date(date))
+
+# -- Simple linear models --
+uncorr_model = lm(Reagan ~ Dulles, data = uncorrected)
+corr_model = lm(Reagan ~ Dulles, data = post2005)
+
+uncorr_model_2015 = lm(Reagan ~ Dulles, data = uncorrected %>% filter(year>2014))
+corr_model_2015 = lm(Reagan ~ Dulles, data = post2005 %>% filter(year>2014))
+
+# Big ole mess
+ggplot(data = post2005, 
+       aes(x = Reagan, y = Dulles, 
+           colour = date_dec)) +
+  geom_path(size = 0.25) +
+  geom_point(size = 4, alpha = 0.5) +
+  geom_text(aes(label = year), colour = '#ff7f00',
+            data = post2005 %>% filter(date_dec %in% c(2005, 2016))) + 
+  scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
+  theme_xygrid()
+
+
+ggplot(data = post2005 %>% filter(year > 2013), 
+       aes(x = Reagan, y = Dulles, 
+           colour = date_dec)) +
+  # geom_path(size = 0.25) +
+  geom_point(size = 4, alpha = 0.5) +
+  geom_text(aes(label = year), colour = '#ff7f00',
+            data = post2005 %>% filter(date_dec %in% c(2014, 2016))) + 
+  scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
+  theme_xygrid() + 
+  coord_equal()
+
+ggplot(data = post2005 %>% filter(year > 2014.9), 
+       aes(x = Reagan, y = Dulles, 
+           colour = date_dec)) +
+  # geom_path(size = 0.25) +
+  geom_smooth(method='lm',formula=y~x,
+              fill = '#ff7f00', alpha = 0.18,
+              colour = '#ff7f00', size = 0.5) + 
+  geom_point(size = 4, alpha = 0.5) +
+  geom_text(aes(label = year), colour = '#ff7f00',
+            data = post2005 %>% filter(date_dec %in% c(2015, 2016))) + 
+  scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
+  theme_xygrid() +
+  coord_equal()
+
+ggplot(data = uncorrected %>% filter(year > 2014.9), 
+       aes(x = Reagan, y = Dulles, 
+           colour = date_dec)) +
+  # geom_path(size = 0.25) +
+  geom_smooth(method='lm',formula=y~x,
+              fill = '#ff7f00', alpha = 0.18,
+              colour = '#ff7f00', size = 0.5) + 
+  geom_point(size = 4, alpha = 0.5) +
+  geom_text(aes(label = year), colour = '#ff7f00',
+            data = post2005 %>% filter(date_dec %in% c(2015, 2016))) + 
+  scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
+  theme_xygrid() +
+  coord_equal()
+
+# Exploring variation in seasonality --------------------------------------
+
+
 # Create a ts object to input into seasonal::seas
 ts_all_month = ts(all_by_month %>% select(num), frequency = 12, start = c(2000, 1))
 
@@ -21,24 +144,34 @@ correction_month = all_by_month %>%
 arrivals_adj = dc_month %>% 
   ungroup() %>% 
   group_by(airport) %>% 
-  mutate(natl = correction_month$adj,
-         adj = total / correction_month$adj)
+  mutate(natl = all_by_month$num,
+         adj = total / natl)
 
-ggplot(arrivals_adj, aes(x = yr_month, y = adj,
+ggplot(arrivals_adj %>% filter(year<2007, year>2004), aes(x = yr_month, y = adj,
                          group = airport, colour= airport)) +
   geom_line()+ 
   theme_bw()
   
 
-# daily pattern ----------------------------------------------------------
+# monthly pattern ----------------------------------------------------------
 
+# For each of the airports, fit a monthly seasonal model.
 # Create a ts object to input into seasonal::seas
-x = all_by_date %>% ungroup() %>% select(num)
-ts_all_date = ts(all_by_date %>% ungroup() %>% select(num), 
-                 frequency = 7, start = c(2000, 1,1))
+ts_dca_month = ts(dc_by_month %>% filter(airport == 'Reagan') %>% select(num), 
+                 frequency = 12, start = c(2000, 1))
+
 
 # Using seasonal package to calculate the seasonally-adjusted patterns.
-all_date_model = ts_all_date %>% seas 
-all_month_adj = all_month_model %>% final
+dca_month_model = ts_dca_month %>% seas 
+dca_month_adj = dca_month_model %>% final
 
-plot(all_month_model)
+plot(dca_month_model)
+plot(dca_month_adj)
+
+
+# Weekly adjustment -------------------------------------------------------
+
+ts_dca_date = ts(dc_by_date %>% filter(airport == 'Reagan') %>% select(num), 
+                 frequency = 52, start = c(2000, 1,1))
+
+dca_date_model = auto.arima(ts_dca_date)
