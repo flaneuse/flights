@@ -48,12 +48,10 @@ dc_by_date$airport = factor(dc_by_date$airport,
 
 
 # 01- DC over entire period -----------------------------------------------
-by_month = dc_by_month %>% filter(airport != 'BWI') %>% 
-  spread(airport, num)
+by_month = dc_by_month %>% filter(airport != 'BWI')
 
-ggplot(by_month, aes(x = yr_month, y = num,
+ggplot(by_month, aes(x = yr_month, y = dc,
                      group = airport, colour = airport)) +
-  geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight() +
   theme(axis.title = element_blank(),
@@ -62,7 +60,11 @@ ggplot(by_month, aes(x = yr_month, y = num,
                filter(month == 10 & year == 2004 | 
                         month == 3 & year == 2005 | 
                         month == 4 & year == 2016)) +
-  geom_text(aes(label = num), 
+  geom_segment(aes(x = date, xend = date, y = 0, yend = max(by_month$dc)),
+               data = context,
+               colour = grey70K, size = 0.5) +
+  geom_line() +
+  geom_text(aes(label = dc), 
             family = 'Segoe UI Semilight', size = 4.5,
             hjust = 0,
             data = by_month %>% 
@@ -216,25 +218,14 @@ ggplot(dc_by_date %>% filter(year > 2012), aes(x = date, y = ratio,
   # ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 but more at Dulles') +
   facet_wrap(~airport)
 
-ggplot(dc_by_month %>% filter(year>2010), aes(x = yr_month, y = ratio,
+ggplot(dc_by_month, aes(x = yr_month, y = ratio,
                        group = airport, colour = airport)) +
   geom_line() +
   scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 'Reagan' = dcaColour)) +
   theme_xygridlight() +
   theme(axis.title = element_blank(),
         title = element_text(size = 13)) +
-  # geom_point(size = 2, data = by_month %>% 
-  #              filter(month == 10 & year == 2004 | 
-  #                       month == 3 & year == 2005 | 
-  #                       month == 4 & year == 2016)) +
-  # geom_text(aes(label = num), 
-  #           family = 'Segoe UI Semilight', size = 4.5,
-  #           hjust = 0,
-  #           data = by_month %>% 
-  #             filter(month == 10 & year == 2004 | 
-  #                      month == 3 & year == 2005 | 
-  #                      month == 4 & year == 2016)) +
-ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 but more at Dulles') +
+ggtitle('Share of flights at Dulles have decreased, while Reagan and BWI are more stable') +
   facet_wrap(~airport)
 
 

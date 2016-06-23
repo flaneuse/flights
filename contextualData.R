@@ -8,16 +8,16 @@
 
 
 # Create dataset ----------------------------------------------------------
-context = data.frame(airport = c('IAD', 'IAD', 'IAD', 'IAD', 'IAD', 'IAD', 'IAD',
-                                 'DCA'),
+context = data.frame(airport = c('Dulles', 'Dulles', 'Dulles', 'Dulles', 'Dulles', 'Dulles', 'Dulles',
+                                 'Reagan', 'Reagan', 'Reagan', 'Dulles'),
                      year = c(2006, 2003, 2008, 2004, 2006, 2008, 2009,
-                              2002, 2005
+                              2002, 2005, 2001, 2001
                               ),
                      month = c(10, 04, 01, 04, 01, 11, 09,
-                               04, 10),
+                               04, 10, 9,9),
                      day = c(05, 01, 01, 16, 05, 20, 22,
-                             01,18), # Note: using 1st day of month if unknown
-                     event = c('Southwest Airlines opens at IAD',
+                             01,18, 11, 11), # Note: using 1st day of month if unknown
+                     event = c('Southwest Airlines opens at Dulles',
                                '4 gates added to Concourse B',
                                '15 gates added to Concourse B',
                                'Independence Air launches',
@@ -25,8 +25,10 @@ context = data.frame(airport = c('IAD', 'IAD', 'IAD', 'IAD', 'IAD', 'IAD', 'IAD'
                                'New runway opened',
                                'Expanded international arrivals building',
                                'Ban on large aircraft lifted',
-                               'Reopened to general aviation on limited basis')
-                     )
+                               'Reopened to general aviation on limited basis',
+                               'Sept. 11','Sept. 11')
+                     ) %>% 
+  mutate(date = ymd(paste0(year, '-', month, '-', day)))
 
 
 # Sources -----------------------------------------------------------------

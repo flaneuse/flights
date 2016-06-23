@@ -21,8 +21,10 @@
 
 # Quickly plotting the overall monthly pattern:
 ggplot(all_by_month, aes(x = yr_month, y = num)) +
-  geom_line() +
-  theme_xygrid()
+  geom_line(colour = grey75K, size = 0.5) +
+  theme_xgrid() +
+  theme(axis.text.y = element_blank(),
+        axis.title.x = element_blank())
 
 # Flights have been decreasing since economic downturn in 2008/2009.
 
@@ -34,10 +36,10 @@ dc_by_date = left_join(dc_by_date, all_by_date,
                               "dayOfWeek" = "dayOfWeek", "date" = "date")) %>% 
   rename(natl = num.y, dc = num.x) %>% 
   mutate(ratio = dc / natl)
-                       
+
 dc_by_month = left_join(dc_by_month, all_by_month,
-                       by = c("year" = "year", "month" = "month",
-                              "yr_month" = "yr_month")) %>% 
+                        by = c("year" = "year", "month" = "month",
+                               "yr_month" = "yr_month")) %>% 
   rename(natl = num.y, dc = num.x) %>% 
   mutate(ratio = dc / natl)
 
@@ -59,20 +61,20 @@ dc2005 = dc_by_year %>%
   mutate(num2005 = num / daysPerYr,
          natl = natl2005,
          ratio2005 = num2005/natl
-         ) %>% 
+  ) %>% 
   ungroup() %>% 
   select(airport, num2005, ratio2005)
 
 
 
 dc2005$airport = factor(dc2005$airport,
-                            levels = c('DCA', 'IAD', 'BWI'),
-                            labels = c('Reagan', 'Dulles', 'BWI'))
+                        levels = c('DCA', 'IAD', 'BWI'),
+                        labels = c('Reagan', 'Dulles', 'BWI'))
 
 
 # Merge in the values from 2005
 dc_by_date = left_join(dc_by_date, dc2005, by = c("airport" = "airport"))
-  
+
 rateChg = dc_by_date %>% 
   filter(year > 2004) %>% 
   rowwise() %>% 
@@ -84,10 +86,49 @@ ggplot(rateChg, aes(x = date, y = rateNum, group = airport, colour = airport)) +
   theme_xygrid() +
   facet_wrap(~airport)
 
-ggplot(rateChg, aes(x = date, y = rateRatio, group = airport, colour = airport)) +
-  geom_line() +
-  theme_xygrid() +
+# Symmetricize the color scale
+colLim = max(abs(min(rateChg$rateRatio)), max(rateChg$rateRatio))
+
+ggplot(rateChg, aes(x = date, y = rateRatio, 
+                    group = airport, colour = rateRatio)) +
+  scale_colour_gradientn(colours = brewer.pal(10, 'RdYlBu'),
+                         limits = c(-colLim, colLim)) +
+  geom_line(size = 0.25) +
+  scale_y_continuous(labels = scales::percent) +
+  ggtitle('percent change from adjusted 2005 value') +
+  theme_xygridlight() +
   facet_wrap(~airport)
+
+ggsave('pdf/05_naive_correction_rate_change.pdf', 
+       width = widthPlot,
+       height = heightPlot/1.5,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
+ggplot(rateChg %>% filter(year > 2013), aes(x = date, y = rateRatio, 
+                    group = airport, colour = airport)) +
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 
+                                'Reagan' = dcaColour)) +
+  
+  geom_line(size = 0.25) +
+  scale_y_continuous(labels = scales::percent) +
+  ggtitle('percent change from adjusted 2005 value') +
+  theme_xygridlight()
+
+ggsave('pdf/06_naive_correction_rate_change_2014.pdf', 
+       width = widthPlot,
+       height = heightPlot*2,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
 
 # correlation of ‘corrected’ data -----------------------------------------
 
@@ -190,7 +231,7 @@ all_month_adj_df = data.frame(date=date_decimal(index(all_month_adj)), y = melt(
 correction_month = all_by_month %>% 
   ungroup() %>% 
   mutate(natl = all_month_adj_df$y,
-    adj = num / all_month_adj_df$y)
+         adj = num / all_month_adj_df$y)
 
 arrivals_adj = dc_month %>% 
   ungroup() %>% 
@@ -199,17 +240,17 @@ arrivals_adj = dc_month %>%
          adj = total / natl)
 
 ggplot(arrivals_adj %>% filter(year<2007, year>2004), aes(x = yr_month, y = adj,
-                         group = airport, colour= airport)) +
+                                                          group = airport, colour= airport)) +
   geom_line()+ 
   theme_bw()
-  
+
 
 # monthly pattern ----------------------------------------------------------
 
 # For each of the airports, fit a monthly seasonal model.
 # Create a ts object to input into seasonal::seas
 ts_dca_month = ts(dc_by_month %>% filter(airport == 'Reagan') %>% select(num), 
-                 frequency = 12, start = c(2000, 1))
+                  frequency = 12, start = c(2000, 1))
 
 
 # Using seasonal package to calculate the seasonally-adjusted patterns.
