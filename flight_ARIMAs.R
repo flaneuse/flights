@@ -229,7 +229,8 @@ ggplot(data = uncorrected %>% filter(year > 2013.99),
 
 
 # Create a ts object to input into seasonal::seas
-ts_all_month = ts(all_by_month %>% select(num), frequency = 12, start = c(2000, 1))
+ts_all_month = ts(all_by_month %>% filter(year >2005) %>% 
+                    select(num), frequency = 12, start = c(2006, 1))
 
 # Using seasonal package to calculate the seasonally-adjusted patterns.
 all_month_model = ts_all_month %>% seas 
@@ -262,8 +263,35 @@ ggplot(arrivals_adj %>% filter(year<2007, year>2004), aes(x = yr_month, y = adj,
 
 # For each of the airports, fit a monthly seasonal model.
 # Create a ts object to input into seasonal::seas
-ts_dca_month = ts(dc_by_month %>% filter(airport == 'Reagan') %>% select(num), 
-                  frequency = 12, start = c(2000, 1))
+ts_iad_month = ts(dc_by_month %>% filter(airport == 'Dulles',
+                                         year> 2005) %>% select(dc), 
+                  frequency = 12, start = c(2006, 1))
+
+
+# Using seasonal package to calculate the seasonally-adjusted patterns.
+iad_month_model = ts_iad_month %>% seas 
+iad_month_adj = iad_month_model %>% final
+
+plot(iad_month_model)
+plot(iad_month_adj)
+
+# Create a ts object to input into seasonal::seas
+ts_bwi_month = ts(dc_by_month %>% filter(airport == 'BWI',
+                                         year> 2005) %>% select(dc), 
+                  frequency = 12, start = c(2006, 1))
+
+
+# Using seasonal package to calculate the seasonally-adjusted patterns.
+bwi_month_model = ts_bwi_month %>% seas 
+bwi_month_adj = bwi_month_model %>% final
+
+plot(bwi_month_model)
+plot(bwi_month_adj)
+
+# Create a ts object to input into seasonal::seas
+ts_dca_month = ts(dc_by_month %>% filter(airport == 'Reagan',
+                                         year> 2005) %>% select(dc), 
+                  frequency = 12, start = c(2006, 1))
 
 
 # Using seasonal package to calculate the seasonally-adjusted patterns.
@@ -273,10 +301,74 @@ dca_month_adj = dca_month_model %>% final
 plot(dca_month_model)
 plot(dca_month_adj)
 
-
 # Weekly adjustment -------------------------------------------------------
 
 ts_dca_date = ts(dc_by_date %>% filter(airport == 'Reagan') %>% select(num), 
                  frequency = 52, start = c(2000, 1,1))
 
 dca_date_model = auto.arima(ts_dca_date)
+
+
+# Compare the trends id’d by ARIMA ----------------------------------------
+trend = data.frame(all = all_month_model$data,
+                   bwi = bwi_month_model$data,
+                   dca = dca_month_model$data,
+                   iad = iad_month_model$data,
+                   date = seq(as.Date("2006-01-01"), by = "month", length.out = 124)) %>% 
+  select(contains('trend'), date) %>% 
+  gather(airport, trend, -date)
+
+trend$airport = factor(trend$airport, levels = c("all.trend", "bwi.trend", "dca.trend", "iad.trend"),
+                       labels = c('all other airports', 'BWI', 'Reagan', 'Dulles'))
+
+ggplot(trend, aes(x = date, y = trend, group = airport, colour = airport)) +
+  geom_line() +
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 
+                                'Reagan' = dcaColour, 'all other airports' = grey60K)) +
+  facet_wrap(~airport, scales = 'free_y') +
+  theme_xygridlight() +
+  ylab('fitted monthly variation') +
+  ggtitle('While Dulles, BWI, and all other airports show similar monthly trends, Reagan is weird')
+
+
+ggsave('pdf/08_monthly_seasonality.pdf', 
+       width = widthPlot,
+       height = heightPlot,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
+
+# DCA has a flatter seasonality -------------------------------------------
+ggplot(dc_by_date %>% filter(year > 2014), aes(x = date, y = dc, group = airport, colour = airport)) +
+  geom_line() +
+  scale_color_manual(values = c('Dulles'= iadColour, 'BWI' = bwiColour, 
+                                'Reagan' = dcaColour, 'all other airports' = grey60K)) +
+  facet_wrap(~airport, scales = 'free_y') +
+  theme_xygridlight() +
+  ggtitle("Reagan's daily flight numbers are more stable than other airports")
+
+ggsave('pdf/09_daily_seasonality.pdf', 
+       width = widthPlot,
+       height = heightPlot/1.5,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
+
+# weekly pattern ----------------------------------------------------------
+# DCA has stronger Saturday dips than other airports
+week_avg = dc_by_date %>% 
+  group_by(airport, dayOfWeek) %>% 
+  summarise(total = sum(dc)) %>% 
+  ungroup() %>% 
+  group_by(airport) %>% 
+  mutate(monday = first(total),
+         normalized = total/monday)
+
+ggplot(week_avg, aes(x = dayOfWeek, y = normalized, group = airport, colour = airport)) + geom_line()
