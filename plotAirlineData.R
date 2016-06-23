@@ -238,7 +238,7 @@ ggtitle('Total flights per month at Reagan and Dulles have decreased since 2005 
   facet_wrap(~airport)
 
 
-ggsave('pdf/01_uncorrected_totalByMonth.pdf', 
+ggsave('pdf/04_naive_correction.pdf', 
        width = widthPlot,
        height = heightPlot,
        bg = 'transparent',
