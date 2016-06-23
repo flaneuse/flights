@@ -207,7 +207,12 @@ all_date_airline = left_join(all_date_airline,
                              by = c("carrier" = "Code")) %>% 
   rename(carrierName = Description) %>% 
   mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
-                              'American Airlines Inc.', carrierName)) # Convert U.S. Airways and America West to be American Airlines, since they merged
+                              'American Airlines Inc.', carrierName)) %>% # Convert U.S. Airways and America West to be American Airlines, since they merged
+  ungroup() %>% 
+  group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
+           carrierName) %>% 
+  summarise(num = sum(num)) %>% 
+  ungroup()
 
 # Check and see if merged properly
 all_date_airline %>% 
@@ -216,12 +221,16 @@ all_date_airline %>%
   summarise(n())
 
 dc_date_airline = left_join(dc_date_airline, 
-                             carriers,
-                             by = c("carrier" = "Code")) %>% 
+                            carriers,
+                            by = c("carrier" = "Code")) %>% 
   rename(carrierName = Description) %>% 
   mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
-                              'American Airlines Inc.', carrierName)) # Convert U.S. Airways and America West to be American Airlines, since they merged
-
+                              'American Airlines Inc.', carrierName)) %>%  # Convert U.S. Airways and America West to be American Airlines, since they merged
+  ungroup() %>% 
+  group_by(year, month, date, dayOfWeek,  # Resumming to account for US Air/American/Amer West mergers
+           carrierName, airport) %>% 
+  summarise(num = sum(num)) %>% 
+  ungroup()
 
 # Check and see if merged properly
 dc_date_airline %>% 
