@@ -239,3 +239,8 @@ ggsave('pdf/04_naive_correction.pdf',
        compress = FALSE,
        dpi = 300)
 
+
+# plot weekly variation ---------------------------------------------------
+ggplot(dc_by_date, aes())
+
+
