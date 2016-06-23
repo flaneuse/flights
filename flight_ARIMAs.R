@@ -150,7 +150,9 @@ uncorrected = dc_by_date %>%
   spread(airport, dc) %>% 
   mutate(date_dec = decimal_date(date))
 
-# -- Simple linear models --
+
+# Simple, linear models ---------------------------------------------------
+
 uncorr_model = lm(Reagan ~ Dulles, data = uncorrected)
 corr_model = lm(Reagan ~ Dulles, data = post2005)
 
@@ -187,16 +189,27 @@ ggplot(data = post2005 %>% filter(year > 2013),
 ggplot(data = post2005 %>% filter(year > 2013), 
        aes(x = Reagan, y = Dulles, 
            colour = date_dec)) +
-  geom_path(size = 0.25) +
+  # geom_path(size = 0.25) +
   geom_smooth(method='lm',formula=y~x,
               fill = '#ff7f00', alpha = 0.18,
-              colour = '#ff7f00', size = 0.5) + 
-  geom_point(size = 4, alpha = 0.5) +
+              colour = '#ff7f00', size = 0.4) + 
+  geom_point(size = 2, alpha = 0.5) +
   geom_text(aes(label = year), colour = '#ff7f00',
-            data = post2005 %>% filter(date_dec %in% c(2015, 2016))) + 
+            data = post2005 %>% filter(date_dec %in% c(2014, 2015, 2016))) + 
   scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
-  theme_xygrid() +
+  theme_xygridlight() +
+  theme(legend.position = c(0.1, 0.1)) +
   coord_equal()
+
+ggsave('pdf/07_corrected_corr.pdf', 
+       width = heightPlot,
+       height = heightPlot,
+       bg = 'transparent',
+       paper = 'special',
+       units = 'in',
+       useDingbats=FALSE,
+       compress = FALSE,
+       dpi = 300)
 
 ggplot(data = uncorrected %>% filter(year > 2013.99), 
        aes(x = Reagan, y = Dulles, 
