@@ -16,6 +16,7 @@ library(readr)
 library(zoo)
 library(data.table)
 library(seasonal)
+library(lubridate)
 
 # Focus data on the airports in the Washington DC Metro area.
 airportCodes = c('DCA', 'IAD', 'BWI')
@@ -86,8 +87,7 @@ flights_dc = flights %>%
 
 # collapse function to sum over timeframe ---------------------------------
 
-collapse = function(df, timeVar,
-                    airports = airportCodes) {
+collapse = function(df, timeVar) {
   
   # explode out timeVar to component parts:
   if(!timeVar %in% colnames(df)) {
@@ -100,25 +100,34 @@ collapse = function(df, timeVar,
   } else if(timeVar == 'date'){
     var2 = 'year'
     var3 = 'month'
-    var4 = 'yr_month'
+    var4 = 'dayOfWeek'
   } else if(timeVar == 'dayOfWeek'){
     var2 = 'year'
     var3 = 'month'
     var4 = 'yr_month'
   }
 
+  summed_flights = df %>%
+    mutate(airport = ifelse(dest == 'DCA' | origin == 'DCA', 'DCA',
+                            ifelse(dest == 'IAD' | origin == 'IAD', 'IAD',
+                                   ifelse(dest == 'BWI' | origin == 'BWI', 'BWI', NA)))) %>% 
+    group_by_(var2, var3, var4, timeVar, 'airport') %>% 
+    summarise(num = n())
+  
+  # Antiquated-- used for separately summing arrivals and departures.
   # Group by the time variable and sum the number of flights
-departures = df %>% 
-  filter(origin %in% airportCodes) %>% 
-  group_by_('origin', var2, var3, var4, timeVar) %>% 
-  summarise(num = n())
+# departures = df %>% 
+#   filter(origin %in% airportCodes) %>% 
+#   group_by_('origin', var2, var3, var4, timeVar) %>% 
+#   summarise(num = n())
+# 
+# arrivals = df %>% 
+#   filter(dest %in% airportCodes) %>% 
+#   group_by_('dest', var2, var3, var4, timeVar) %>% 
+#   summarise(num = n())
 
-arrivals = df %>% 
-  filter(dest %in% airportCodes) %>% 
-  group_by_('dest', var2, var3, var4, timeVar) %>% 
-  summarise(num = n())
-
-return(list(arrivals = arrivals, departures = departures))
+# return(list(arrivals = arrivals, departures = departures))
+  return(summed_flights)
 }
 
 # Collapse by year --------------------------------------------------------
@@ -126,8 +135,6 @@ return(list(arrivals = arrivals, departures = departures))
 dc_by_year = collapse(flights_dc, 
                       timeVar = 'year')
 
-arrivals_year = dc_by_year$arrivals
-dep_year = dc_by_year$departures
 
 # All non-DC data
 all_by_year = flights_ref %>% 
@@ -136,42 +143,46 @@ all_by_year = flights_ref %>%
 
 # Collapse by month -------------------------------------------------------
 dc_by_month = collapse(flights_dc, 
-                      timeVar = 'yr_month')
+                      timeVar = 'yr_month') %>% 
+  ungroup() %>% 
+  mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')))
 
-arrivals_month = dc_by_month$arrivals
-dep_month = dc_by_month$departures
 
 # All non-DC data
 all_by_month = flights_ref %>% 
   group_by(yr_month, year, month) %>% 
-  summarise(num = n())
+  summarise(num = n()) %>% 
+  ungroup() %>% 
+  mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')))
 
 # Collapse by date --------------------------------------------------------
 
 dc_by_date = collapse(flights_dc, 
-                       timeVar = 'date')
+                       timeVar = 'date') %>% 
+  ungroup()
 
-arrivals_date = dc_by_date$arrivals
-dep_date = dc_by_date$departure
 
 # All non-DC data
 all_by_date = flights_ref %>% 
-  group_by(year, month, date) %>% 
-  summarise(num = n())
+  group_by(year, month, date, dayOfWeek) %>% 
+  summarise(num = n()) %>% 
+  ungroup()
 
 
 # Collapse by day of week --------------------------------------------------------
 
 dc_by_day = collapse(flights_dc, 
-                      timeVar = 'dayOfWeek')
+                      timeVar = 'dayOfWeek') %>% 
+  ungroup() %>% 
+  mutate(yr_month = ymd(paste0(year, '-', month, '-', dayOfWeek)))
 
-arrivals_day = dc_by_day$arrivals
-dep_day = dc_by_day$departures
 
 # All non-DC data
-all_by_date = flights_ref %>% 
+all_by_day = flights_ref %>% 
   group_by(yr_month, year, month, dayOfWeek) %>% 
-  summarise(num = n())
+  summarise(num = n()) %>% 
+  ungroup() %>% 
+  mutate(yr_month = ymd(paste0(year, '-', month, '-', dayOfWeek)))
 
 # Collapse by date and airline --------------------------------------------
 dc_date_airline = flights_dc %>% 
@@ -180,19 +191,23 @@ dc_date_airline = flights_dc %>%
                                  ifelse(dest == 'BWI' | origin == 'BWI', 'BWI', NA)))) %>% 
   group_by(year, month, date, dayOfWeek, 
            carrier, airport) %>% 
-  summarise(num = n())
+  summarise(num = n()) %>% 
+  ungroup()
 
 # All non-DC data
 all_date_airline = flights_ref %>% 
   group_by(year, month, date, dayOfWeek, carrier) %>% 
-  summarise(num = n())
+  summarise(num = n()) %>% 
+  ungroup()
 
 
 # Merge in carrier data ---------------------------------------------------
 all_date_airline = left_join(all_date_airline, 
                              carriers,
                              by = c("carrier" = "Code")) %>% 
-  rename(carrierName = Description)
+  rename(carrierName = Description) %>% 
+  mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
+                              'American Airlines Inc.', carrierName)) # Convert U.S. Airways and America West to be American Airlines, since they merged
 
 # Check and see if merged properly
 all_date_airline %>% 
@@ -203,7 +218,10 @@ all_date_airline %>%
 dc_date_airline = left_join(dc_date_airline, 
                              carriers,
                              by = c("carrier" = "Code")) %>% 
-  rename(carrierName = Description)
+  rename(carrierName = Description) %>% 
+  mutate(carrierName = ifelse(carrier %in% c('US', 'HP'), 
+                              'American Airlines Inc.', carrierName)) # Convert U.S. Airways and America West to be American Airlines, since they merged
+
 
 # Check and see if merged properly
 dc_date_airline %>% 
@@ -217,9 +235,11 @@ dc_date_airline %>%
 
 
 # Export relevant data ----------------------------------------------------
-rm(flights_dc, flights_ref)
+# rm(flights_dc, flights_ref)
 
-save.image(file = 'data_out/collapsed_2016-06-22.RData')
+# save.image(file = 'data_out/collapsed_2016-06-22.RData')
 
-save(dc_date_airline, all_date_airline, airports,
+save(dc_date_airline, dc_by_year, dc_by_month, dc_by_date, dc_by_day,
+     all_date_airline, all_by_date, all_by_month, all_by_year,
+     airports,
      file = 'data_out/collapsed_byAirline_2016-06-22.RData')

@@ -8,43 +8,7 @@ library(zoo)
 library(data.table)
 library(seasonal)
 
-# further cleanup ---------------------------------------------------------
-# mutations to create faux dates + add tag for whether arrivals or departures
 
-arrivals_day = arrivals_day %>% 
-  ungroup() %>% 
-  mutate(yr_month = ymd(paste0(year, '-', month, '-', dayOfWeek)))
-
-dep_day = dep_day %>% 
-  ungroup() %>% 
-  mutate(yr_month = ymd(paste0(year, '-', month, '-', dayOfWeek)))
-
-
-# combine data together to get all traffic --------------------------------
-# -- year --
-dc_year = 3
-
-# -- month --  
-all_by_month = all_by_month %>% 
-  ungroup() %>% 
-  mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')))
-
-arrivals_month = arrivals_month %>% 
-  ungroup() %>% 
-  mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')),
-         flightType = 'arrivals') %>% 
-  rename(airport = dest)
-
-dep_month = dep_month %>% 
-  ungroup() %>% 
-  mutate(yr_month = ymd(paste0(year, '-', month, '-', '01')),
-         flightType = 'departures') %>% 
-  rename(airport = origin)
-
-# Merge arrivals and departures
-dc_month = rbind(arrivals_month, dep_month) %>% 
-  group_by(yr_month, year, month, airport) %>% 
-  summarise(total = sum(num))
 
 # Basic exploratory plots -------------------------------------------------
 # -- year --
