@@ -42,6 +42,53 @@ dc_by_month = left_join(dc_by_month, all_by_month,
   mutate(ratio = dc / natl)
 
 
+# Calculating % change relative to 2005 vals ------------------------------
+daysPerYr = 365.25
+
+natl2005 = all_by_year %>% 
+  filter(year == 2005) %>% 
+  mutate(num2005 = num / daysPerYr) %>% 
+  ungroup() %>% 
+  select(num2005)
+
+natl2005 = natl2005$num2005
+
+# total per year
+dc2005 = dc_by_year %>% 
+  filter(year == 2005) %>% 
+  mutate(num2005 = num / daysPerYr,
+         natl = natl2005,
+         ratio2005 = num2005/natl
+         ) %>% 
+  ungroup() %>% 
+  select(airport, num2005, ratio2005)
+
+
+
+dc2005$airport = factor(dc2005$airport,
+                            levels = c('DCA', 'IAD', 'BWI'),
+                            labels = c('Reagan', 'Dulles', 'BWI'))
+
+
+# Merge in the values from 2005
+dc_by_date = left_join(dc_by_date, dc2005, by = c("airport" = "airport"))
+  
+rateChg = dc_by_date %>% 
+  filter(year > 2004) %>% 
+  rowwise() %>% 
+  mutate(rateNum = (dc - num2005) / num2005,
+         rateRatio = (ratio - ratio2005)/ratio2005)
+
+ggplot(rateChg, aes(x = date, y = rateNum, group = airport, colour = airport)) +
+  geom_line() +
+  theme_xygrid() +
+  facet_wrap(~airport)
+
+ggplot(rateChg, aes(x = date, y = rateRatio, group = airport, colour = airport)) +
+  geom_line() +
+  theme_xygrid() +
+  facet_wrap(~airport)
+
 # correlation of ‘corrected’ data -----------------------------------------
 
 post2005 = dc_by_month %>% 
@@ -69,6 +116,9 @@ corr_model = lm(Reagan ~ Dulles, data = post2005)
 uncorr_model_2015 = lm(Reagan ~ Dulles, data = uncorrected %>% filter(year>2014))
 corr_model_2015 = lm(Reagan ~ Dulles, data = post2005 %>% filter(year>2014))
 
+uncorr_model_2014 = lm(Reagan ~ Dulles, data = uncorrected %>% filter(year>2013))
+corr_model_2014 = lm(Reagan ~ Dulles, data = post2005 %>% filter(year>2013))
+
 # Big ole mess
 ggplot(data = post2005, 
        aes(x = Reagan, y = Dulles, 
@@ -78,7 +128,8 @@ ggplot(data = post2005,
   geom_text(aes(label = year), colour = '#ff7f00',
             data = post2005 %>% filter(date_dec %in% c(2005, 2016))) + 
   scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
-  theme_xygrid()
+  theme_xygrid() +
+  coord_equal()
 
 
 ggplot(data = post2005 %>% filter(year > 2013), 
@@ -92,10 +143,10 @@ ggplot(data = post2005 %>% filter(year > 2013),
   theme_xygrid() + 
   coord_equal()
 
-ggplot(data = post2005 %>% filter(year > 2014.9), 
+ggplot(data = post2005 %>% filter(year > 2013), 
        aes(x = Reagan, y = Dulles, 
            colour = date_dec)) +
-  # geom_path(size = 0.25) +
+  geom_path(size = 0.25) +
   geom_smooth(method='lm',formula=y~x,
               fill = '#ff7f00', alpha = 0.18,
               colour = '#ff7f00', size = 0.5) + 
@@ -106,7 +157,7 @@ ggplot(data = post2005 %>% filter(year > 2014.9),
   theme_xygrid() +
   coord_equal()
 
-ggplot(data = uncorrected %>% filter(year > 2014.9), 
+ggplot(data = uncorrected %>% filter(year > 2013.99), 
        aes(x = Reagan, y = Dulles, 
            colour = date_dec)) +
   # geom_path(size = 0.25) +
@@ -115,7 +166,7 @@ ggplot(data = uncorrected %>% filter(year > 2014.9),
               colour = '#ff7f00', size = 0.5) + 
   geom_point(size = 4, alpha = 0.5) +
   geom_text(aes(label = year), colour = '#ff7f00',
-            data = post2005 %>% filter(date_dec %in% c(2015, 2016))) + 
+            data = uncorrected %>% filter(date_dec %in% c(2014, 2016))) + 
   scale_colour_gradientn(colours = brewer.pal(9, 'Blues')[2:9]) +
   theme_xygrid() +
   coord_equal()
